@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
-  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, CloudDrizzle, CloudRain,
+  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow,
   CloudSun, Compass, Droplets, ExternalLink, Leaf, MapPin, Moon, Sun, SunMedium,
   Wind, Share2, Sparkles, Waves,
 } from "lucide-react";
@@ -15,6 +15,8 @@ import {
 const words = {
   en: {
     tagline: "Explore Indonesia’s Seasons.", explore: "A year, in seasons", intro: "Twelve months. Countless local rhythms.",
+    now: "RIGHT NOW", currentPattern: "Broad seasonal pattern", liveWeather: "CURRENT WEATHER", loadingWeather: "Loading current conditions…", weatherUnavailable: "Current weather is temporarily unavailable.", retryWeather: "Retry", modelWeather: "Modelled conditions", feelsLike: "Feels like", humidity: "Humidity", windSpeed: "Wind", rainChance: "Rain chance", todayHighLow: "Today’s range", weatherUpdated: "Updated", weatherAttribution: "Representative coordinates for the selected area.",
+    clear: "Clear sky", mainlyClear: "Mostly clear", cloudy: "Partly cloudy", overcast: "Overcast", fog: "Foggy", drizzle: "Drizzle", rain: "Rain", snow: "Snow", showers: "Rain showers", storm: "Thunderstorm",
     choose: "Choose a month", monthNote: "The color shows a broad Indonesian monsoon pattern.", region: "Explore a place", regionPlaceholder: "Search a region…",
     general: "General overview", year: "Year", today: "Today", share: "Copy link", copied: "Link copied",
     climatology: "Climatological pattern", forecast: "Official outlook · national", source: "BMKG source", updated: "Published", reviewed: "Reviewed",
@@ -31,6 +33,8 @@ const words = {
   },
   id: {
     tagline: "Jelajahi Musim Indonesia.", explore: "Satu tahun, berganti musim", intro: "Dua belas bulan. Irama lokal yang beragam.",
+    now: "SAAT INI", currentPattern: "Pola musim secara umum", liveWeather: "CUACA TERKINI", loadingWeather: "Memuat kondisi cuaca…", weatherUnavailable: "Cuaca terkini sementara tidak tersedia.", retryWeather: "Coba lagi", modelWeather: "Kondisi dari model cuaca", feelsLike: "Terasa seperti", humidity: "Kelembapan", windSpeed: "Angin", rainChance: "Peluang hujan", todayHighLow: "Rentang hari ini", weatherUpdated: "Diperbarui", weatherAttribution: "Koordinat representatif untuk wilayah yang dipilih.",
+    clear: "Cerah", mainlyClear: "Cerah berawan tipis", cloudy: "Cerah berawan", overcast: "Berawan tebal", fog: "Berkabut", drizzle: "Gerimis", rain: "Hujan", snow: "Salju", showers: "Hujan singkat", storm: "Hujan petir",
     choose: "Pilih bulan", monthNote: "Warna menunjukkan pola monsun Indonesia secara umum.", region: "Jelajahi wilayah", regionPlaceholder: "Cari wilayah…",
     general: "Gambaran umum", year: "Tahun", today: "Hari ini", share: "Salin tautan", copied: "Tautan disalin",
     climatology: "Pola klimatologis", forecast: "Tinjauan resmi · nasional", source: "Sumber BMKG", updated: "Terbit", reviewed: "Ditinjau",
@@ -46,6 +50,37 @@ const words = {
     janMar: "JAN — DES", sourceLabel: "Baca tinjauan BMKG", dataType: "Jenis data", note: "Catatan", todayShort: "Ke bulan saat ini",
   },
 } as const;
+
+type WeatherPayload = {
+  regionId: string; regionName: string; timezone: string; observedAt: string;
+  temperature: number; feelsLike: number | null; humidity: number | null; precipitation: number | null;
+  windSpeed: number | null; weatherCode: number; isDay: boolean; todayHigh: number | null;
+  todayLow: number | null; rainChance: number | null; source: string; sourceUrl: string; refreshedAt: string;
+};
+
+function WeatherGlyph({ code, isDay, size = 24 }: { code: number; isDay: boolean; size?: number }) {
+  if (code === 0) return isDay ? <SunMedium size={size} strokeWidth={1.55} /> : <Moon size={size} strokeWidth={1.55} />;
+  if (code <= 2) return <CloudSun size={size} strokeWidth={1.55} />;
+  if (code === 3) return <Cloud size={size} strokeWidth={1.55} />;
+  if (code <= 48) return <CloudFog size={size} strokeWidth={1.55} />;
+  if (code >= 95) return <CloudLightning size={size} strokeWidth={1.55} />;
+  if (code >= 71 && code <= 77) return <CloudSnow size={size} strokeWidth={1.55} />;
+  return <CloudRain size={size} strokeWidth={1.55} />;
+}
+
+function weatherDescription(code: number, t: typeof words[Locale]) {
+  if (code === 0) return t.clear;
+  if (code === 1) return t.mainlyClear;
+  if (code <= 2) return t.cloudy;
+  if (code === 3) return t.overcast;
+  if (code <= 48) return t.fog;
+  if (code <= 57) return t.drizzle;
+  if (code <= 67) return t.rain;
+  if (code <= 77) return t.snow;
+  if (code <= 82) return t.showers;
+  if (code <= 86) return t.snow;
+  return t.storm;
+}
 
 function SeasonGlyph({ season, size = 17 }: { season: Season; size?: number }) {
   if (season === "rainy") return <CloudRain size={size} strokeWidth={1.7} aria-hidden="true" />;
@@ -99,11 +134,15 @@ export default function MusimkuApp() {
   const [sceneVisible, setSceneVisible] = useState(true);
   const [month, setMonth] = useState(9);
   const [year, setYear] = useState(2026);
+  const [todayDate, setTodayDate] = useState<{ month: number; year: number } | null>(null);
   const [regionId, setRegionId] = useState("indonesia");
   const [regionInput, setRegionInput] = useState(regions[0].name);
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("id");
   const [lightTheme, setLightTheme] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [weather, setWeather] = useState<WeatherPayload | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherError, setWeatherError] = useState(false);
   const t = words[locale];
   const region = regions.find((item) => item.id === regionId) ?? regions[0];
   const season = monthlyPattern[month];
@@ -116,11 +155,16 @@ export default function MusimkuApp() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const now = new Date();
+    const current = { month: now.getMonth(), year: now.getFullYear() };
+    setTodayDate(current);
     const parsedMonth = Number(params.get("month"));
     const parsedYear = Number(params.get("year"));
     const parsedRegion = regions.find((item) => item.id === params.get("region"));
     if (Number.isInteger(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12) setMonth(parsedMonth - 1);
+    else setMonth(current.month);
     if (Number.isInteger(parsedYear) && parsedYear >= 2025 && parsedYear <= 2030) setYear(parsedYear);
+    else setYear(current.year);
     if (parsedRegion) {
       setRegionId(parsedRegion.id);
       setRegionInput(parsedRegion.name);
@@ -128,6 +172,45 @@ export default function MusimkuApp() {
     const localeParam = params.get("lang");
     if (localeParam === "id" || localeParam === "en") setLocale(localeParam);
   }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let controller: AbortController | undefined;
+    const load = async () => {
+      controller?.abort();
+      controller = new AbortController();
+      setWeather((current) => current?.regionId === regionId ? current : null);
+      setWeatherLoading(true);
+      setWeatherError(false);
+      try {
+        const response = await fetch(`/api/weather?region=${encodeURIComponent(regionId)}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Weather unavailable");
+        const result = (await response.json()) as WeatherPayload;
+        if (!disposed) setWeather(result);
+      } catch (error) {
+        if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) {
+          setWeather(null);
+          setWeatherError(true);
+        }
+      } finally {
+        if (!disposed) setWeatherLoading(false);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 15 * 60 * 1000);
+    document.addEventListener("visibilitychange", loadWhenVisible);
+    function loadWhenVisible() {
+      if (document.visibilityState === "visible") void load();
+    }
+    return () => {
+      disposed = true;
+      controller?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", loadWhenVisible);
+    };
+  }, [regionId]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = lightTheme ? "light" : "dark";
@@ -163,6 +246,7 @@ export default function MusimkuApp() {
   const selectMonth = useCallback((index: number) => setMonth(index), []);
   const goToday = () => {
     const now = new Date();
+    setTodayDate({ month: now.getMonth(), year: now.getFullYear() });
     setMonth(now.getMonth());
     setYear(Math.min(2030, Math.max(2025, now.getFullYear())));
   };
@@ -176,7 +260,24 @@ export default function MusimkuApp() {
     }
   };
 
+  const retryWeather = async () => {
+    setWeatherLoading(true);
+    setWeatherError(false);
+    try {
+      const response = await fetch(`/api/weather?region=${encodeURIComponent(regionId)}`);
+      if (!response.ok) throw new Error("Weather unavailable");
+      setWeather((await response.json()) as WeatherPayload);
+    } catch {
+      setWeatherError(true);
+      setWeather(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
   const monthTitle = useMemo(() => `${monthName} ${year}`, [monthName, year]);
+  const highlightedDate = todayDate ?? { month, year };
+  const weatherUpdatedTime = weather ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { hour: "2-digit", minute: "2-digit", timeZone: weather.timezone }).format(new Date(weather.refreshedAt)) : null;
 
   return (
     <main className={`app-shell ${lightTheme ? "app-shell--light" : ""}`}>
@@ -196,6 +297,20 @@ export default function MusimkuApp() {
         </div>
       </header>
 
+      <aside className="current-highlight page-width" aria-label={`${t.now}: ${monthLabels[highlightedDate.month][locale]} ${highlightedDate.year}`} aria-live="polite">
+        <button type="button" className="current-highlight-season" onClick={goToday} aria-label={t.todayShort}>
+          <span className="current-highlight-eyebrow"><span className="live-dot" />{t.now}</span>
+          <strong>{monthLabels[highlightedDate.month][locale]} {highlightedDate.year}</strong>
+          <span className={`highlight-season-dot season-dot--${monthlyPattern[highlightedDate.month]}`} />
+          <span className="current-highlight-pattern">{t.currentPattern} · {seasonCopy[locale][monthlyPattern[highlightedDate.month]].label}</span>
+        </button>
+        <div className="current-highlight-weather">
+          <span className="weather-live-label"><span className="live-dot" />{t.liveWeather}</span>
+          {weather ? <><WeatherGlyph code={weather.weatherCode} isDay={weather.isDay} size={26} /><strong className="weather-temperature">{Math.round(weather.temperature)}°</strong><span className="weather-condition">{weatherDescription(weather.weatherCode, t)}<small>{region.name}</small></span></> : <span className="weather-inline-state">{weatherLoading ? t.loadingWeather : weatherError ? t.weatherUnavailable : t.loadingWeather}</span>}
+          {weatherError && <button className="weather-retry" type="button" onClick={() => void retryWeather()}>{t.retryWeather}</button>}
+        </div>
+      </aside>
+
       <section className="hero page-width" id="top" aria-label="Seasonal landscape">
         <div className="hero-copy">
           <div className="eyebrow"><span className="eyebrow-line" /> {t.explore}</div>
@@ -203,10 +318,19 @@ export default function MusimkuApp() {
           <p className="hero-intro">{t.intro}</p>
         </div>
         <div className="hero-side-note" aria-hidden="true"><Compass size={15} /><span>06° S<br />108° E</span><i /></div>
-        <div ref={heroSceneRef} className="hero-landscape" role="img" aria-label={`${seasonLabel} landscape illustration for ${monthTitle}`}>
+        <div ref={heroSceneRef} className="hero-landscape" role="img" aria-label={`Pemandangan ${seasonLabel} untuk ${monthTitle}`}>
           <AnimatePresence mode="sync"><WeatherScene season={season} monthIndex={month} reducedMotion={Boolean(prefersReducedMotion)} isVisible={sceneVisible} /></AnimatePresence>
           <div className="scene-label scene-label--top"><span className={`season-dot season-dot--${season}`} />{hasLocalPattern ? copy.eyebrow : t.seasonUnavailable}</div>
             <div className="scene-coordinate"><Waves size={12} /> NUSANTARA · {monthLabels[month].short[locale]} ’{String(year).slice(-2)}</div>
+          <aside className="scene-weather" aria-label={`${t.liveWeather}: ${weather ? `${Math.round(weather.temperature)}° · ${weatherDescription(weather.weatherCode, t)}` : t.loadingWeather}`}>
+            <div className="scene-weather-heading"><span><i className="live-dot" />{t.liveWeather}</span><span>{region.name}</span></div>
+            {weather ? <>
+              <div className="scene-weather-main"><WeatherGlyph code={weather.weatherCode} isDay={weather.isDay} size={40} /><strong>{Math.round(weather.temperature)}<sup>°</sup></strong><span>{weatherDescription(weather.weatherCode, t)}</span></div>
+              <div className="scene-weather-meta"><span>{t.todayHighLow} <b>{weather.todayHigh === null ? "—" : `${Math.round(weather.todayHigh)}°`} / {weather.todayLow === null ? "—" : `${Math.round(weather.todayLow)}°`}</b></span><span>{t.humidity} <b>{weather.humidity === null ? "—" : `${weather.humidity}%`}</b></span><span>{t.windSpeed} <b>{weather.windSpeed === null ? "—" : `${Math.round(weather.windSpeed)} km/j`}</b></span></div>
+              <div className="scene-weather-source"><span>{t.modelWeather} · {weatherUpdatedTime ? `${t.weatherUpdated} ${weatherUpdatedTime}` : ""}</span><a href={weather.sourceUrl} target="_blank" rel="noreferrer">{weather.source} <ExternalLink size={10} /></a></div>
+              <div className="scene-weather-attribution">{t.weatherAttribution}</div>
+            </> : <p className="scene-weather-state">{weatherLoading ? t.loadingWeather : t.weatherUnavailable}{weatherError && <button type="button" onClick={() => void retryWeather()}>{t.retryWeather}</button>}</p>}
+          </aside>
           <div className="scene-caption"><span className="caption-icon"><SeasonGlyph season={season} size={18} /></span><span><strong>{monthName} {year}</strong><small>{hasLocalPattern ? seasonLabel : t.unavailable}</small></span><ArrowUpRight size={16} className="caption-arrow" /></div>
           <div className="scene-progress" aria-hidden="true"><span className="scene-progress-dot" style={{ left: `${(month / 11) * 100}%` }} /></div>
         </div>

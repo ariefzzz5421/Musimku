@@ -3,20 +3,20 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://musimku.vercel.app"),
-  title: "Musimku — Explore Indonesia’s Seasons",
+  title: "Musimku — Jelajahi Musim Indonesia",
   description:
-    "An interactive calendar for exploring Indonesia’s rainy and dry seasons, regional climate patterns, and the science behind monsoons.",
+    "Kalender interaktif untuk menjelajahi musim hujan dan kemarau, cuaca terkini, pola iklim berbagai wilayah Indonesia, dan ilmu monsun.",
   applicationName: "Musimku",
   openGraph: {
-    title: "Musimku — Explore Indonesia’s Seasons",
-    description: "Watch Indonesia’s seasons change throughout the year.",
+    title: "Musimku — Jelajahi Musim Indonesia",
+    description: "Amati perubahan musim Indonesia sepanjang tahun dengan cuaca terkini.",
     type: "website",
     siteName: "Musimku",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Musimku — Explore Indonesia’s Seasons",
-    description: "Explore Indonesia’s seasons through an interactive climate calendar.",
+    title: "Musimku — Jelajahi Musim Indonesia",
+    description: "Jelajahi musim Indonesia melalui kalender iklim interaktif.",
   },
 };
 
@@ -27,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="id">
       <body>{children}</body>
     </html>
   );

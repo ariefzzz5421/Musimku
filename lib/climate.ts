@@ -5,20 +5,23 @@ export type Region = {
   id: string;
   name: string;
   patternAvailable: boolean;
+  latitude: number;
+  longitude: number;
+  timezone: string;
 };
 
 export const regions: Region[] = [
-  { id: "indonesia", name: "Indonesia · general overview", patternAvailable: true },
-  { id: "jatim", name: "Jawa Timur", patternAvailable: false },
-  { id: "kediri", name: "Kediri, Jawa Timur", patternAvailable: false },
-  { id: "jabar", name: "Jawa Barat", patternAvailable: false },
-  { id: "jakarta", name: "Jakarta", patternAvailable: false },
-  { id: "bali", name: "Bali", patternAvailable: false },
-  { id: "sumut", name: "Sumatera Utara", patternAvailable: false },
-  { id: "kaltim", name: "Kalimantan Timur", patternAvailable: false },
-  { id: "sulsel", name: "Sulawesi Selatan", patternAvailable: false },
-  { id: "ntt", name: "Nusa Tenggara Timur", patternAvailable: false },
-  { id: "papua", name: "Papua", patternAvailable: false },
+  { id: "indonesia", name: "Indonesia · gambaran umum", patternAvailable: true, latitude: -6.2, longitude: 106.8, timezone: "Asia/Jakarta" },
+  { id: "jatim", name: "Jawa Timur", patternAvailable: false, latitude: -7.25, longitude: 112.75, timezone: "Asia/Jakarta" },
+  { id: "kediri", name: "Kediri, Jawa Timur", patternAvailable: false, latitude: -7.82, longitude: 112.01, timezone: "Asia/Jakarta" },
+  { id: "jabar", name: "Jawa Barat", patternAvailable: false, latitude: -6.91, longitude: 107.61, timezone: "Asia/Jakarta" },
+  { id: "jakarta", name: "Jakarta", patternAvailable: false, latitude: -6.21, longitude: 106.85, timezone: "Asia/Jakarta" },
+  { id: "bali", name: "Bali", patternAvailable: false, latitude: -8.65, longitude: 115.22, timezone: "Asia/Makassar" },
+  { id: "sumut", name: "Sumatera Utara", patternAvailable: false, latitude: 3.59, longitude: 98.67, timezone: "Asia/Jakarta" },
+  { id: "kaltim", name: "Kalimantan Timur", patternAvailable: false, latitude: -0.5, longitude: 117.15, timezone: "Asia/Makassar" },
+  { id: "sulsel", name: "Sulawesi Selatan", patternAvailable: false, latitude: -5.15, longitude: 119.43, timezone: "Asia/Makassar" },
+  { id: "ntt", name: "Nusa Tenggara Timur", patternAvailable: false, latitude: -10.18, longitude: 123.61, timezone: "Asia/Makassar" },
+  { id: "papua", name: "Papua", patternAvailable: false, latitude: -2.53, longitude: 140.72, timezone: "Asia/Jayapura" },
 ];
 
 export const monthLabels = [
